@@ -1,0 +1,13 @@
+{"command": [
+     "docker", "run", "-i", "-v", "/cluster/vep:/root/.vep", "dnanexus/dxjupyterlab-vep",
+     "./vep", "--format", "vcf", "__OUTPUT_FORMAT_FLAG__", "--everything", "--allele_number",
+     "--no_stats", "--cache", "--offline", "--assembly", "GRCh38", "-o", "STDOUT",
+     "--dir_cache", "/root/.vep/",
+     "--fasta", "/root/.vep/homo_sapiens/103_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz",
+    "--plugin", "LoF,loftee_path:/root/.vep/Plugins/loftee,human_ancestor_fa:/root/.vep/human_ancestor.fa,conservation_file:/root/.vep/loftee.sql,gerp_bigwig:/root/.vep/gerp_conservation_scores.homo_sapiens.GRCh38.bw"],
+  "env": {
+      "PERL5LIB": "/root/.vep/Plugins"
+  },
+  "vep_json_schema": "Struct{assembly_name:String,allele_string:String,ancestral:String,context:String,end:Int32,id:String,input:String,intergenic_consequences:Array[Struct{allele_num:Int32,consequence_terms:          Array[String],impact:String,variant_allele:String}],most_severe_consequence:String,motif_feature_consequences:Array[Struct{allele_num:Int32,consequence_terms:Array[String],high_inf_pos:String,impact:   String,motif_feature_id:String,motif_name:String,motif_pos:Int32,motif_score_change:Float64,strand:Int32,variant_allele:String}],regulatory_feature_consequences:Array[Struct{allele_num:Int32,biotype:   String,consequence_terms:Array[String],impact:String,regulatory_feature_id:String,variant_allele:String}],seq_region_name:String,start:Int32,strand:Int32,transcript_consequences:                        Array[Struct{allele_num:Int32,amino_acids:String,appris:String,biotype:String,canonical:Int32,ccds:String,cdna_start:Int32,cdna_end:Int32,cds_end:Int32,cds_start:Int32,codons:String,consequence_terms:Array[String],    distance:Int32,domains:Array[Struct{db:String,name:String}],exon:String,gene_id:String,gene_pheno:Int32,gene_symbol:String,gene_symbol_source:String,hgnc_id:String,hgvsc:String,hgvsp:String,hgvs_offset:Int32,impact:   String,intron:String,lof:String,lof_flags:String,lof_filter:String,lof_info:String,polyphen_prediction:String,polyphen_score:Float64,protein_end:Int32,protein_start:Int32,protein_id:String,             sift_prediction:String,sift_score:Float64,strand:Int32,swissprot:String,transcript_id:String,trembl:String,tsl:Int32,uniparc:String,variant_allele:String}],variant_class:String}"
+ }
+ 

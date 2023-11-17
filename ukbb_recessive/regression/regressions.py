@@ -293,7 +293,7 @@ def order_df(df, column, order):
 
 
 def plot_errorbar_grouped(df, axis, y_column, group_column, title, 
-                          xlim=None, ymargin=0.4, legend_loc='lower right', group_scale=0.1, 
+                          xlim=None, ymargin=0.4, legend_loc='lower right', legend_kwargs={}, group_scale=0.1, y_scale=1,
                           y_order=None, group_order=None, vertical_loc=1, colors=get_cmap("Accent").colors):
     """
         Makes a horizontal errorbar plot for odds ratio, grouped by `group_column`.  
@@ -305,15 +305,18 @@ def plot_errorbar_grouped(df, axis, y_column, group_column, title,
 
     # calculate positions of the "groups"
     if y_order is None:
-        df['y_group_loc'] = le.fit_transform(df[y_column])
+        df['y_group_loc'] = le.fit_transform(df[y_column])*y_scale
     else:
-        df['y_group_loc'] = df[y_column].apply(lambda x: y_order[::-1].index(x))
+        df['y_group_loc'] = df[y_column].apply(lambda x: y_order[::-1].index(x))*y_scale
 
     # calculate positions of each plot within "groups"
     if group_order is None:
         df['y'] = df['y_group_loc'] + le.fit_transform(df[group_column])*group_scale
     else:
         df['y'] = df['y_group_loc'] + df[group_column].apply(lambda x: group_order[::-1].index(x))*group_scale
+
+    # plot vertical line, denoting absence of effect   
+    axis.axvline(x=vertical_loc,  color='gray', linewidth=1, alpha=0.5, linestyle='dotted',)
 
     # calculate the positions of labels on y-axis
     y_labels_dict = df[[y_column, 'y']].groupby(y_column).mean().apply(lambda x: round(x, 2)).to_dict()['y']
@@ -331,11 +334,9 @@ def plot_errorbar_grouped(df, axis, y_column, group_column, title,
                       y=df_group['y'], 
                       xerr=df_group[['odds_ratio_lower', 'odds_ratio_upper']].values.T, 
                       label=group,
-                      capsize=0, marker='s', markersize=10, markeredgecolor=colors[idx], 
-                      markerfacecolor=colors[idx], linestyle='', elinewidth=3, color=colors[idx])
+                      capsize=0, marker='s', markersize=3, markeredgecolor=colors[idx], 
+                      markerfacecolor=colors[idx], linestyle='', elinewidth=1, color=colors[idx])
 
-    # plot vertical line, denoting absence of effect   
-    axis.axvline(x=vertical_loc,  linestyle='--', color='salmon', linewidth=3)
 
     # add labels on y-axis
     axis.set_yticks(list(y_labels_dict.values()))
@@ -343,6 +344,18 @@ def plot_errorbar_grouped(df, axis, y_column, group_column, title,
 
     # add margins on top and bottom
     axis.margins(y=ymargin)
+
+    # Customize spines
+    axis.spines['left'].set_color('black')
+    axis.spines['bottom'].set_color('black')
+    axis.spines['top'].set_visible(False)
+    axis.spines['right'].set_visible(False)
+
+    # Add ticks
+    axis.yaxis.set_ticks_position('left')
+    axis.xaxis.set_ticks_position('bottom')
+    axis.tick_params(which='major', width=1.00, length=2.5)
+    axis.tick_params(which='minor', width=0.75, length=1.25)
 
     # set limit on x-axis
     if xlim is not None:
@@ -354,16 +367,16 @@ def plot_errorbar_grouped(df, axis, y_column, group_column, title,
 
     # set ticks and labels on x-axis
     axis.xaxis.set_major_formatter(ticker.FormatStrFormatter('%0.1f'))
-    axis.set_xlabel('Odds ratio', fontsize=20)
+    axis.set_xlabel('OR (99% CI)')
 
     # add legend
-    axis.legend(loc=legend_loc, numpoints=1)
+    axis.legend(loc=legend_loc, numpoints=1, **legend_kwargs)
 
     return df
 
 
 def plot_errorbar_grouped_transposed(df, axis, y_column, group_column, title, 
-                          xlim=None, ymargin=0.4, legend_loc='lower right', group_scale=0.1, 
+                          xlim=None, ymargin=0.4, legend_loc='lower right', group_scale=0.1, y_scale=1,
                           y_order=None, group_order=None, vertical_loc=1, colors=get_cmap("Accent").colors):
     
     """
@@ -381,9 +394,9 @@ def plot_errorbar_grouped_transposed(df, axis, y_column, group_column, title,
 
     # calculate positions of each plot within "groups"
     if group_order is None:
-        df['y'] = df['y_group_loc'] + le.fit_transform(df[group_column])*group_scale
+        df['y'] = df['y_group_loc']*y_scale + le.fit_transform(df[group_column])*group_scale
     else:
-        df['y'] = df['y_group_loc'] + df[group_column].apply(lambda x: group_order[::-1].index(x))*group_scale
+        df['y'] = df['y_group_loc']*y_scale + df[group_column].apply(lambda x: group_order[::-1].index(x))*group_scale
 
     # calculate the positions of labels on x-axis
     y_labels_dict = df[[y_column, 'y']].groupby(y_column).mean().apply(lambda x: round(x, 2)).to_dict()['y']
@@ -424,7 +437,7 @@ def plot_errorbar_grouped_transposed(df, axis, y_column, group_column, title,
 
     # set ticks and labels on y-axis
     axis.yaxis.set_major_formatter(ticker.FormatStrFormatter('%0.1f'))
-    axis.set_ylabel('Odds ratio', fontsize=20)
+    axis.set_ylabel('OR ()', fontsize=20)
 
     # add legend
     axis.legend(loc=legend_loc, numpoints=1)

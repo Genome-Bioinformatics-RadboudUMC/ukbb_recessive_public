@@ -4,21 +4,19 @@ The repository contains the data analysis pipeline for UKBiobank data, focusing 
 
 The pipeline scripts are under `scripts`, reusable code is under `ukbb_recessive`. 
 
-There are 2 main pipelines: 
+There are 2 different variant selection procedures: 
 
 1. Collection of singleton high qualuty LoF variants in highly constrained (s-het >=0.15) genes from the UK Biobank. 
 
 2. Collection of PLPs in recessive genes from the UK Biobank. 
 
-Data from both of the pipelines are analyzed using generalized linear models. 
+Data from both of the sources are analyzed using generalized linear models. 
 
-# Pipelines
-
-The reason for these pipelines to be difefrent is that historically recessive genes pipeline was developed first. Therefore in order to add information from other genes, the new approach was developed independently. 
+# Pipeline
 
 ## Collection of singleton high qualuty LoF variants in highly constrained (s-het >=0.15) genes from the UK Biobank.
 
-The pipeline is under `scripts/lof_carriers_selection` and consists of the following steps:
+The pipeline is under `scripts/1_data_preparation/lof_carriers_selection` and consists of the following steps:
 
 1. Creation of the list of highly constrained genes with genomic locations (`1_create_gene_list.ipynb`)
 
@@ -28,7 +26,7 @@ The pipeline is under `scripts/lof_carriers_selection` and consists of the follo
 
 ## Collection of PLPs in recessive genes from the UK Biobank.
 
-The pipeline is under `scripts/pipeline` and consists of the following steps:
+The pipeline is under `scripts/pipeline/1_data_preparation` and consists of the following steps:
 
 0. Converting all the conserning genes into gencode v.34 notation (`0_convert_data_into_gencode_v34.ipynb`)
 
@@ -44,4 +42,25 @@ The pipeline is under `scripts/pipeline` and consists of the following steps:
 
 # Regressions
 
-Regressions analysis combines previous two pipelines outputs and therefore described separatly. The pipeline is under `scripts/pipeline/7_regressions`. 
+Regressions analysis combines previous two pipelines outputs and therefore described separatly. The pipeline is under `scripts/pipeline/2_regressions`. It consusts of the different steps and analyses:
+
+0. Creation of the dataset for all of consequent regression analyses (`0_dataset_creation`)
+
+1. Regressions for all phenotypes for PLPs in recessive genes and singleton LoFs in non-recessive highly constrained genes (`1_basic_regressions`)
+
+2. Regressions for different disorder groups (`2_disorder_groups`)
+
+3. Analyses based on sampling  (`3_sampling_analysis`):
+    a. Sampling dataset size (`dataset`)
+    b. Samling non-ID recessive genes to resemble the same s-het distribution as ID genes (`genes`)
+    c. Sampling synonymous variants as a negative control (`synonymous`)
+
+4. Sex-specific analyses (`4_sex_specific_analyses`)
+
+5. Consanguinity ratio (`5_cr_analysis`)
+
+6. Correction for deprivation scores (`6_deprivation_abalysis`)
+
+# Figures
+
+All main and supplementary/extended figures generation is under `scripts/pipeline/3_generate_figures`.

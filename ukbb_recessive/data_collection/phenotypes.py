@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import pandas as pd
 from math import nan
+import numpy as np
 
 class PhenotypeFeatures:
     """
@@ -47,7 +48,24 @@ class PhenotypeFeatures:
             '42040-0.0': 'gp_record',
             '1707-0.0': 'handedness',
             '1747-0.0': 'hair_color',
-            '50-0.0': 'height'
+            '50-0.0': 'height',
+            'p26410' : 'multiple_deprivation_engand',
+            'p26427' : 'multiple_deprivation_scotland',
+            'p26426' : 'multiple_deprivation_wales',
+            'p26414' : 'edu_deprivation_england',
+            'p26431' : 'edu_deprivation_scotland',
+            'p26421' : 'edu_deprivation_wales',
+            'p26411' : 'income_deprivation_england',
+            'p26428' : 'income_deprivation_scotland',
+            'p26418' : 'income_deprivation_wales',
+            'p26415' : 'housing_deprivation_england',
+            'p26432' : 'housing_deprivation_scotland',
+            'p26423' : 'housing_deprivation_wales',
+            'p26413' : 'health_deprivation_england',
+            'p26430' : 'health_deprivation_scotland',
+            'p26420' : 'health_deprivation_wales',
+            'p738_i0' : 'household_income',
+            'p1309_i0' : 'fresh_fruit_intake'
         }
 
     def _process_pca_features(self, pca_features):
@@ -110,6 +128,7 @@ class PhenotypeFeatures:
 
         # university degree
         features['qualifications'] = features['qualifications'].fillna('')
+        features["years_of_edu"] = features['qualifications'].fillna('').apply(years_of_edu)
         features['uni_1/0_excluding_none'] = features['qualifications'].apply(has_university_degree)
         features['uni_1/0_including_none'] = features['qualifications'].apply(has_university_degree_include_none)
         features['higher_education_including_none'] = features['qualifications'].apply(has_higher_education_include_none)
@@ -157,8 +176,11 @@ class PhenotypeFeatures:
         # ICD diagnoses
         features['diagnosis_main_ICD10_cnt'] = features['diagnosis_main_ICD10'].apply(number_ICD_diagnoses)
         features['diagnosis_secondary_ICD10_cnt'] = features['diagnosis_secondary_ICD10'].apply(number_ICD_diagnoses)
+        features['diagnosis_total_ICD10_cnt'] = features['diagnosis_main_ICD10_cnt'] + features['diagnosis_secondary_ICD10_cnt']
 
-        features['diagnosis_total_ICD10_cnt'] = features['diagnosis_main_ICD10_cnt'] + features['diagnosis_secondary_ICD10_cnt'] 
+        features['diagnosis_secondary_ICD10_cnt_log'] = np.log(features['diagnosis_secondary_ICD10_cnt'])
+        features['diagnosis_main_ICD10_cnt_log'] = np.log(features['diagnosis_main_ICD10_cnt'])
+        features['diagnosis_total_ICD10_cnt_log'] = np.log(features['diagnosis_total_ICD10_cnt'])
 
         # infertility
         features['ICD_infertility'] = (features['diagnosis_main_ICD10'].apply(has_infertility_ICD) |
@@ -185,6 +207,25 @@ def calc_birth_cohort(year):
     else:
         return f"{middle + 1}-{middle + 5}"
 
+def years_of_edu(qualifications):
+    # based on:
+    # https://academic.oup.com/ije/article/51/3/885/6521336#369530775
+    qualifications = qualifications.split('|')
+    
+    if '1' in qualifications:
+        return 20
+    elif '5' in qualifications:
+        return 19
+    elif '6' in qualifications:
+        return 15
+    elif '2' in qualifications:
+        return 13
+    elif ('3' in qualifications) or ('4' in qualifications):
+        return 10
+    elif '-7' in qualifications:
+        return 7
+    else:
+        return None
 
 def has_university_degree(qualification):
     qualification = str(qualification).strip()
@@ -270,9 +311,7 @@ def number_ICD_diagnoses(codes):
     return len(codes_list)
 
 def has_infertility_ICD(codes):
-    infertility = ['N46'] + [f"N97{i}" for i in range(10)]
-
-    infertility = set(infertility)
+    infertility = set(['N46'] + [f"N97{i}" for i in range(10)])
 
     codes_list = set([code.split('.')[0] for code in str(codes).split("|")])
 

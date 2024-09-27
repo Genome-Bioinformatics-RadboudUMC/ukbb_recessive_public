@@ -44,7 +44,7 @@ class RegressionDataset:
         self.s_het_file = s_het_file # path to a file with a selective constraint
         self.cohort_plps_files = cohort_plps_files # paths to files with cohort variants information
         self.high_shet_threshold = high_shet_threshold # redundant, but this is a treshold to consider a gene as highly constraint
-        self.dataset = dataset # could be `recessive` or `lof`, defines which variant features class to invoke (PLPs or LOFs)
+        self.dataset = dataset # could be `synonymous`, `recessive` or `lof`, defines which variant features class to invoke (PLPs or LOFs)
 
         #filters
         self.samples_list = samples_list # list of samples of interest
@@ -80,7 +80,7 @@ class RegressionDataset:
         print ("Dataset type:", self.dataset)
 
         # this code is used for PLPs in recessive genes
-        if self.dataset == 'recessive':
+        if (self.dataset == 'recessive') or (self.dataset == 'synonymous'):
             # collect variant features
             variant_features = VariantFeatures().calculate_s_het_per_sample(
                 het_occurence_threshold = self.het_occurrence_threshold,
@@ -104,7 +104,7 @@ class RegressionDataset:
             )
 
         else:
-            raise Exception("dataset should be one of ('recessive', 'lof')")
+            raise Exception("dataset should be one of ('synonymous', 'recessive', 'lof')")
         
         return variant_features
 

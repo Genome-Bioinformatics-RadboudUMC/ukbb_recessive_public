@@ -65,7 +65,7 @@ class VariantFeatures:
         print(f"Function `filter_plps_in_samples` finished, result written in `{output_folder}`.")
         print()
 
-    def collect_rare_plps(self, het_occurence_threshold, all_plps_file, s_het_file, genes_list=None):
+    def collect_rare_plps(self, het_occurence_threshold, all_plps_file, s_het_file, genes_list=None, hom_occurence_threshold=0.):
         """
         Creates DataFrame with rare PLPs according to the `het_occurrence_threshold`, adds information about s_het
         :param het_occurence_threshold: threshold for the heterozygous variant occurrence in the cohort
@@ -86,12 +86,12 @@ class VariantFeatures:
         print(f"Initial total numbers of PLPs: {all_plps.shape[0]}")
 
         # select rare PLPS
-        rare_plps = all_plps[(all_plps['hets'] <= het_occurence_threshold) & (all_plps['homs'] <= 0.)]
+        rare_plps = all_plps[(all_plps['hets'] <= het_occurence_threshold) & (all_plps['homs'] <= hom_occurence_threshold)]
         rare_plps = rare_plps[['chr', 'position', 'ref',
                                'alt', 'gene', 'hets', 'homs']].rename(columns={'chr': 'chrom', 'position': 'pos'})
         print(f"Total numbers rare PLPs using <treshold={het_occurence_threshold}>: {rare_plps.shape[0]}")
 
-        # add s_het information
+        # add s_het informations
         rare_plps = rare_plps.merge(s_het_cassa, how='left', on='gene')
 
         # filter_out gene panel if necessary
@@ -105,7 +105,7 @@ class VariantFeatures:
 
         return rare_plps
 
-    def read_sample_plps(self, cohort_plps_files):
+    def read_sample_plps(self, cohort_plps_files, filter_homozygous=True):
         """
         reads samples PLPs and merges them together
         :param cohort_plps_files: list of all plp files for cohort
@@ -121,9 +121,10 @@ class VariantFeatures:
         plps = pd.concat(plps).drop_duplicates()
         print ("All PLPs in the cohort:", plps.shape[0])
         
-        # remove homozygous carriers
-        plps = plps[plps['GT'] != '1/1']
-        print ("Heterozygous PLPs in the cohort:", plps.shape[0])
+        if filter_homozygous:
+            # remove homozygous carriers
+            plps = plps[plps['GT'] != '1/1']
+            print ("Heterozygous PLPs in the cohort:", plps.shape[0])
 
         return plps
 

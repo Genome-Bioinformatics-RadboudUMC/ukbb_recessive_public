@@ -26,13 +26,8 @@ import numpy as np
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
-from matplotlib.cm import get_cmap
-from sklearn import preprocessing
 
-import matplotlib.ticker as ticker
-
-
-def get_information_model(model_result, target=None, analysis=None, gender=None, formula=None, alpha=0.01):
+def get_information_model(model_result, target=None, analysis=None, gender=None, formula=None, alpha=0.01, family=None, n_tests_correction=1):
     """
         Extracts effect estimation and p-values from fitted regression model, 
         calculates odds ratios and confidence intervals, annotates result with tags 
@@ -50,7 +45,17 @@ def get_information_model(model_result, target=None, analysis=None, gender=None,
     result['odds_ratio'] = np.exp(result['effect'])
     result['odds_ratio_lower'] = np.exp(result['lower'])
     result['odds_ratio_upper'] = np.exp(result['upper'])
-    result = result[['effect', 'odds_ratio', 'odds_ratio_lower', 'odds_ratio_upper', 'p_value']]
+
+    if (family == 'binomial'):
+        result['odds_ratio_pretty'] = 'OR = ' + result['odds_ratio'].apply(lambda x: f"{x:.3f}")
+    else: 
+        result['odds_ratio_pretty'] = 'ES = ' + result['effect'].apply(lambda x: f"{x:.3f}") 
+
+    result.loc[:, "p_value_corrected"] = result["p_value"]*n_tests_correction
+    result.loc[:, 'bonferroni_correction_coef'] = n_tests_correction
+
+
+    result = result[['effect', 'odds_ratio', 'odds_ratio_lower', 'odds_ratio_upper', 'odds_ratio_pretty', 'p_value', 'p_value_corrected', 'bonferroni_correction_coef']]
 
     # add information about observations used for regression model
     result['n_observations'] = model_result.nobs
@@ -67,6 +72,9 @@ def get_information_model(model_result, target=None, analysis=None, gender=None,
     
     if formula is not None:
         result['formula'] = formula
+
+    if family is not None:
+        result['family'] = family
     
     # add regressors as a column and return
         
@@ -113,7 +121,7 @@ def get_target_family(family):
     else:
         raise Exception("family should be one of {'binomial', 'poisson', 'gaussian'}")
 
-def run_regressions(dataset, targets, families, analysis_tag, genders, s_het_list=['s_het']):
+def run_regressions(dataset, targets, families, analysis_tag, genders, s_het_list=['s_het'], tab_offset='', n_tests_correction=1):
     """
         Main function that runs regressions on `dataset`. 
         The function runs regression for all `targets` , `genders` one-by-one. 
@@ -135,14 +143,14 @@ def run_regressions(dataset, targets, families, analysis_tag, genders, s_het_lis
 
     for gender in genders:
 
-        print (f"\tProcessing {gender} samples", flush=True)
+        print (f"{tab_offset}\tProcessing {gender} samples", flush=True)
 
         # select samples
         dataset_subset = select_samples_gender(dataset=dataset, gender=gender)
 
         for target, family in zip(targets, families):
 
-            print (f"\t\tProcessing {target}", flush=True)
+            print (f"{tab_offset}\t\tProcessing {target}", flush=True)
             # generate formula
             formula = get_formula(target=target, s_het_list=s_het_list)
 
@@ -155,7 +163,9 @@ def run_regressions(dataset, targets, families, analysis_tag, genders, s_het_lis
                                            target = target, 
                                            gender = gender, 
                                            analysis=analysis_tag, 
-                                           formula=formula)
+                                           formula=formula, 
+                                           family=family, 
+                                           n_tests_correction=n_tests_correction)
 
 
             # select interesting features
@@ -188,6 +198,7 @@ def sci_notation(number, sig_fig=2):
     Converts the number into the pretty text in scientific notation:
     For example: 1e-17 -> 1×10¹⁷
   """
+
   # convert numbet into string in scientific notation
   ret_string = "{0:.{1:d}e}".format(number, sig_fig)
   # divide into main and power: in 1e-17 1 is main, -17 is power
@@ -196,6 +207,18 @@ def sci_notation(number, sig_fig=2):
   power = int(power)         
   # concatenate main and power into pretty string
   return main + "×10" + SuperScriptinate(str(power))
+
+def p_value_sci_notation(number, sig_fig=2, treshold=0.01):
+    """
+        Converts the number into the pretty text in scientific notation:
+        For example: 1e-17 -> 1×10¹⁷
+    """
+    if number > 1:
+        return 1
+    elif number < treshold:
+        return sci_notation(number, sig_fig)
+    else:
+        return f"{round(number, 3)}"
 
 def revert_sci_notation(number):
     """
@@ -210,18 +233,23 @@ def prettify_table_for_paper(df, keep_effects=[]):
     """
     # drop unused columns
     df = df[df['feature'].str.contains('s_het') | df['feature'].isin(keep_effects)].drop(
-        ['effect', 'formula', 'odds_ratio_lower', 'odds_ratio_upper'], axis=1)
+        ['effect', 'formula', 'odds_ratio', 'odds_ratio_lower', 'odds_ratio_upper', 'family'], axis=1)
 
     # special case for edu-all
-    df = df[~df['analysis'].str.contains("any education = 'all'")]
+    df = df[~df['analysis'].str.contains("any education = 'all'")].copy()
 
     # fix output format
-    df["odds_ratio"] = df["odds_ratio"].apply(lambda x: round(x, 2))
-    df["p_value_raw"] = df["p_value"].copy()
-    df["p_value"] = df["p_value"].apply(sci_notation)
-    df['n_observations'] = df['n_observations'].apply(lambda x: "{0:,}".format(x))
+    # df.loc[:, "odds_ratio"] = df["odds_ratio"].apply(lambda x: round(x, 2))
+    df.loc[:, "p_value_pretty"] = df["p_value"].apply(p_value_sci_notation).astype(str)
+    df.loc[:, "p_value_corrected_pretty"] = df["p_value_corrected"].apply(p_value_sci_notation).astype(str)
+    df.loc[:, 'n_observations_pretty'] = df['n_observations'].apply(lambda x: "{0:,}".format(x)).astype(str)
+    
+
+    df.drop(['n_observations', 'p_value', 'p_value_corrected', 'bonferroni_correction_coef'], axis=1, inplace=True)
 
     return df
+
+
 
 def save_table_for_paper(all_results, path, keep_effects=[]):
     """
@@ -257,187 +285,30 @@ def save_table_for_paper(all_results, path, keep_effects=[]):
     all_results_df.to_excel(writer, sheet_name="Raw data")
     all_results_pretty_df.to_excel(writer, sheet_name="Paper table")
 
+    # Bug/weird behaviour of MultiIndex in ExcelWriter
+    writer.sheets["Raw data"].set_row(2, None, None, {'hidden': True})
+    writer.sheets["Paper table"].set_row(2, None, None, {'hidden': True})
+
     # Close the Pandas Excel writer and output the Excel file.
     writer.close()
-
-# Plots for paper
-def get_plot_data(df, target, tag):
-    """
-        Selects regression results for a `target`, 
-        converts odds ratio confidence intervals into distances to odds ratio (needed for plotting)
-    """
-    # select necessary target
-    data = df[df['target'] == target].copy()
-
-    # convert confidence intervals into distances
-    data['odds_ratio_lower'] = data['odds_ratio'] - data['odds_ratio_lower']
-    data['odds_ratio_upper'] = data['odds_ratio_upper'] - data['odds_ratio']
-
-    # ad tag
-    data['tag'] = tag
-
-    return data[['target', 'odds_ratio', 'odds_ratio_lower', 'odds_ratio_upper', 'p_value_pretty', 'tag', 'gender', 'feature', 'analysis']]
-
-def order_df(df, column, order):
-    """
-    Creates dataframe with values in `column` organized in `order`. 
-    """
-    df_new = []
-
-    for value in order:
-         df_new.append(df[df[column] == value])
-
-    df_new = pd.concat(df_new)
-
-    return df_new
-
-
-def plot_errorbar_grouped(df, axis, y_column, group_column, title, 
-                          xlim=None, ymargin=0.4, legend_loc='lower right', legend_kwargs={}, group_scale=0.1, y_scale=1,
-                          y_order=None, group_order=None, vertical_loc=1, colors=get_cmap("Accent").colors):
-    """
-        Makes a horizontal errorbar plot for odds ratio, grouped by `group_column`.  
-    """
-
-    # we will use label encoder to calculate the positions
-    # of the data on the plot
-    le = preprocessing.LabelEncoder()
-
-    # calculate positions of the "groups"
-    if y_order is None:
-        df['y_group_loc'] = le.fit_transform(df[y_column])*y_scale
-    else:
-        df['y_group_loc'] = df[y_column].apply(lambda x: y_order[::-1].index(x))*y_scale
-
-    # calculate positions of each plot within "groups"
-    if group_order is None:
-        df['y'] = df['y_group_loc'] + le.fit_transform(df[group_column])*group_scale
-    else:
-        df['y'] = df['y_group_loc'] + df[group_column].apply(lambda x: group_order[::-1].index(x))*group_scale
-
-    # plot vertical line, denoting absence of effect   
-    axis.axvline(x=vertical_loc,  color='gray', linewidth=1, alpha=0.5, linestyle='dotted',)
-
-    # calculate the positions of labels on y-axis
-    y_labels_dict = df[[y_column, 'y']].groupby(y_column).mean().apply(lambda x: round(x, 2)).to_dict()['y']
-
-    # sort values in our df by position, so we control
-    # for the order in the legend
-    df = df.sort_values(by=['y'], ascending=False)
-
-    # plot each group errorbar separatly with its own color
-    for idx, group in enumerate(df[group_column].drop_duplicates().values):
-
-        df_group = df[df[group_column] == group]
-
-        axis.errorbar(x=df_group['odds_ratio'], 
-                      y=df_group['y'], 
-                      xerr=df_group[['odds_ratio_lower', 'odds_ratio_upper']].values.T, 
-                      label=group,
-                      capsize=0, marker='s', markersize=3, markeredgecolor=colors[idx], 
-                      markerfacecolor=colors[idx], linestyle='', elinewidth=1, color=colors[idx])
-
-
-    # add labels on y-axis
-    axis.set_yticks(list(y_labels_dict.values()))
-    axis.set_yticklabels(list(y_labels_dict.keys()))
-
-    # add margins on top and bottom
-    axis.margins(y=ymargin)
-
-    # Customize spines
-    axis.spines['left'].set_color('black')
-    axis.spines['bottom'].set_color('black')
-    axis.spines['top'].set_visible(False)
-    axis.spines['right'].set_visible(False)
-
-    # Add ticks
-    axis.yaxis.set_ticks_position('left')
-    axis.xaxis.set_ticks_position('bottom')
-    axis.tick_params(which='major', width=1.00, length=2.5)
-    axis.tick_params(which='minor', width=0.75, length=1.25)
-
-    # set limit on x-axis
-    if xlim is not None:
-        axis.set_xlim(xlim)
-
-    # set title and grid style
-    axis.set_title(title)
-    axis.grid(linestyle='dotted')   
-
-    # set ticks and labels on x-axis
-    axis.xaxis.set_major_formatter(ticker.FormatStrFormatter('%0.1f'))
-    axis.set_xlabel('OR (99% CI)')
-
-    # add legend
-    axis.legend(loc=legend_loc, numpoints=1, **legend_kwargs)
-
-    return df
-
-
-def plot_errorbar_grouped_transposed(df, axis, y_column, group_column, title, 
-                          xlim=None, ymargin=0.4, legend_loc='lower right', group_scale=0.1, y_scale=1,
-                          y_order=None, group_order=None, vertical_loc=1, colors=get_cmap("Accent").colors):
     
-    """
-        Makes a vertical errorbar plot for odds ratio, grouped by `group_column`.  
-    """
-    # we will use label encoder to calculate the positions
-    # of the data on the plot
-    le = preprocessing.LabelEncoder()
 
-    # calculate positions of the "groups"
-    if y_order is None:
-        df['y_group_loc'] = le.fit_transform(df[y_column])
-    else:
-        df['y_group_loc'] = df[y_column].apply(lambda x: y_order[::-1].index(x))
+def read_results_excel(path, flatten_multiindex=True):
+    # read raw table
+    reader = pd.ExcelFile(path)
 
-    # calculate positions of each plot within "groups"
-    if group_order is None:
-        df['y'] = df['y_group_loc']*y_scale + le.fit_transform(df[group_column])*group_scale
-    else:
-        df['y'] = df['y_group_loc']*y_scale + df[group_column].apply(lambda x: group_order[::-1].index(x))*group_scale
+    all_results_df = pd.read_excel(reader, sheet_name="Raw data", header=[0, 1], skiprows=[2])
+    all_results_df = all_results_df.drop(all_results_df.columns[0], axis=1)
 
-    # calculate the positions of labels on x-axis
-    y_labels_dict = df[[y_column, 'y']].groupby(y_column).mean().apply(lambda x: round(x, 2)).to_dict()['y']
+    # prettify p-values
+    new_columns = [(level0, 'p_value_pretty') for level0 in all_results_df.columns.get_level_values(level=0).unique()]
+    all_results_df[new_columns] = all_results_df.loc[:, (slice(None), 'p_value')].map(p_value_sci_notation)
+    
+    if 'p_value_corrected' in all_results_df.columns.get_level_values(level=1):
+        new_columns = [(level0, 'p_value_corrected_pretty') for level0 in all_results_df.columns.get_level_values(level=0).unique()]
+        all_results_df[new_columns] = all_results_df.loc[:, (slice(None), 'p_value_corrected')].map(p_value_sci_notation)
 
-    # sort values in our df by position, so we control
-    # for the order in the legend
-    df = df.sort_values(by=['y'], ascending=True)
+    if flatten_multiindex:
+        all_results_df = all_results_df.stack(level=0, future_stack=True).reset_index().drop('level_0', axis=1).rename({'level_1': 'dataset'}, axis=1)
 
-    # plot each group errorbar separatly with its own color
-    for idx, group in enumerate(df[group_column].drop_duplicates().values):
-
-        df_group = df[df[group_column] == group]
-
-        axis.errorbar(y=df_group['odds_ratio'], 
-                      x=df_group['y'], 
-                      yerr=df_group[['odds_ratio_lower', 'odds_ratio_upper']].values.T, 
-                      label=group,
-                      capsize=0, marker='s', markersize=10, markeredgecolor=colors[idx], 
-                      markerfacecolor=colors[idx], linestyle='', elinewidth=3, color=colors[idx])
-
-    # plot vertical line, denoting absence of effect 
-    axis.axhline(y=vertical_loc,  linestyle='--', color='salmon', linewidth=3)
-
-    # add labels on x-axis
-    axis.set_xticks(list(y_labels_dict.values()))
-    axis.set_xticklabels(list(y_labels_dict.keys()))
-
-    # add margins in the left and right 
-    axis.margins(x=ymargin)
-
-    # set limits on x-axis
-    if xlim is not None:
-        axis.set_ylim(xlim)
-
-    # set title and grid style
-    axis.set_title(title)
-    axis.grid(linestyle='dotted')   
-
-    # set ticks and labels on y-axis
-    axis.yaxis.set_major_formatter(ticker.FormatStrFormatter('%0.1f'))
-    axis.set_ylabel('OR ()', fontsize=20)
-
-    # add legend
-    axis.legend(loc=legend_loc, numpoints=1)
+    return all_results_df

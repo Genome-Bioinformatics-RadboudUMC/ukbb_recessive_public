@@ -1,25 +1,3 @@
-'''
-This file is part of the "ukbb_recessive" project, that explores the 
-negative selection on heterozygotes and the landscape of recessive disease
-using UKBB data. 
-
-Copyright (C) 2023  Gelana Khazeeva
-Copyright (C) 2023  Hila Fridman
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-'''
-
 from __future__ import division
 import csv
 import os
@@ -27,24 +5,25 @@ import pandas as pd
 import numpy as np
 
 #enter annotated file name
-annotated_file = "../450k/plp_selection/chrnumber_1929_genes_annotated.txt"
-
-# output filenames; chrnumber will be replaced by chrXX
-output_file = "../450k/plp_selection/basic/new_gene_names/new_freq/chrnumber_total_presumable_plps.txt"
-output_file_leftovers = "../450k/plp_selection/basic/new_gene_names/new_freq/chrnumber_total_presumable_plps_frequency_leftovers.txt"
+annotated_file = ".../450k/plp_selection/chrnumber_1929_genes_annotated.txt"
+output_file = ".../450k/plp_selection/basic/new_gene_names/new_freq/chrnumber_total_presumable_plps.txt"
+output_file_leftovers = ".../450k/plp_selection/basic/new_gene_names/new_freq/chrnumber_total_presumable_plps_frequency_leftovers.txt"
 
 #enter num of samples
 samples_num= 406213
 
 #needed files
-ADAR_genes = "../450k/regions/ADAR_genes_gencode-v34.txt"
-AR_genes = "../450k/regions/AR_genes_gencode-v34.txt"
+ADAR_genes = ".../450k/regions/ADAR_genes_gencode-v34.txt"
+AR_genes = ".../450k/regions/AR_genes_gencode-v34.txt"
 
 #header
-annotated_file_header=['chr','position','ref','alt','gene','region','synonymous','Hgvsc','Hgvsp',
-                       'variant_type','Protein Effect','gnomAD-E_AF','loftee','mpc_score','CADD_score',
-                       'MOI-Pred_score','decipher','vkgl','hgmd-DM','clinvar','clinvar_stars','intervar','hets','homs']
+annotated_file_header=['chr','position','ref','alt','gene','region','synonymous','Hgvsc','Hgvsp','variant_type','Protein Effect','gnomAD-E_AF','loftee','mpc_score','CADD_score','MOI-Pred_score','decipher','vkgl','hgmd-DM','clinvar','clinvar_stars','intervar','hets','homs']
 
+
+#load files
+df_AR = pd.read_csv(AR_genes, sep="\t", header=None)
+df_ADAR = pd.read_csv(ADAR_genes, sep="\t", header=None)
+df_annotated = pd.read_csv(annotated_file, sep="\t", engine='python')
 
 #edit annotated file- convert strings into int/float in specific columns
 def change_dtype(value):
@@ -55,36 +34,6 @@ def change_dtype(value):
             return float(value)
         except ValueError:
             return value
-        
-def remove_adjacent_indels(in_df):
-    in_df.to_csv('tmp.vcf',sep="\t", index=False)
-    os.system("echo end >> tmp.vcf")
-    with open ('tmp.vcf', "rt") as inPut, open ('tmp.txt', "w") as final:
-        reader= csv.reader(inPut, delimiter="\t")
-        writer= csv.writer(final, delimiter="\t")
-
-        next(reader)
-        nl1=next(reader)
-        nl2=next(reader)
-
-        while nl1[0]!="end" and nl2[0]!="end":
-            if int(float(nl2[1]))-int(float(nl1[1]))>10:
-                writer.writerow(nl1)
-                nl1=nl2
-                nl2=next(reader)
-            else:
-                nl1=next(reader)
-                if nl1[0]!="end":
-                    nl2=next(reader)
-        if nl2[0]=="end":
-            writer.writerow(nl1)
-    return pd.read_csv('tmp.txt', sep="\t", names=annotated_file_header)
-
-#load files
-df_AR = pd.read_csv(AR_genes, sep="\t", header=None)
-df_ADAR = pd.read_csv(ADAR_genes, sep="\t", header=None)
-df_annotated = pd.read_csv(annotated_file, sep="\t", engine='python')
-
 
 df_annotated.loc[:,'clinvar_stars']=df_annotated['clinvar_stars'].apply(change_dtype)
 df_annotated['gnomAD-E_AF'] = df_annotated['gnomAD-E_AF'].astype(float)
@@ -141,6 +90,30 @@ cond_indel_loftee = (df_annotated['loftee']=="HC")
 
 cond_indels_extras = (cond_indel_length & cond_indel_loftee)
 
+def remove_adjacent_indels(in_df):
+    in_df.to_csv('../450k/tmp.vcf',sep="\t", index=False)
+    os.system("echo end >> ../450k/tmp.vcf")
+    with open ('../450k/tmp.vcf', "rt") as inPut, open ('../450k/tmp.txt', "w") as final:
+        reader= csv.reader(inPut, delimiter="\t")
+        writer= csv.writer(final, delimiter="\t")
+
+        next(reader)
+        nl1=next(reader)
+        nl2=next(reader)
+
+        while nl1[0]!="end" and nl2[0]!="end":
+            if int(float(nl2[1]))-int(float(nl1[1]))>10:
+                writer.writerow(nl1)
+                nl1=nl2
+                nl2=next(reader)
+            else:
+                nl1=next(reader)
+                if nl1[0]!="end":
+                    nl2=next(reader)
+        if nl2[0]=="end":
+            writer.writerow(nl1)
+    return pd.read_csv('../450k/tmp.txt', sep="\t", names=annotated_file_header)
+
 #conditions tier 3- "missed missense"
 cond_missense = (df_annotated['Protein Effect'].str.contains("missense_variant"))
 cond_clinvar_weak = ((df_annotated['clinvar'].str.contains("Pathogenic")) | (df_annotated['clinvar']=="Likely_pathogenic"))
@@ -148,10 +121,18 @@ cond_hgmd = (df_annotated['hgmd-DM']=="Y")
 cond_intervar = (df_annotated['intervar'].str.contains("athogenic"))
 
 tier_3_cond = ((cond_clinvar_not & cond_vkgl_not & cond_missense) & ((cond_clinvar_weak & cond_hgmd) | (cond_hgmd & cond_intervar) | (cond_intervar & cond_clinvar_weak)))
+tier_3_cond_CADD_MPC = ((cond_clinvar_not & cond_vkgl_not & cond_missense) & (df_annotated['CADD_score']>25) & (df_annotated['mpc_score']>2))
+tier_3_cond_CADD_MOI = ((cond_clinvar_not & cond_vkgl_not & cond_missense) & (df_annotated['CADD_score']>25) & (df_annotated['MOI-Pred_score']>0.9))
+
 
 #combined conditions- choose which tier 3 is relevant
 cond_AR_subs_plps  = (cond_AR & cond_subs & (tier_1_cond | tier_2_cond | tier_3_cond ))
+#cond_AR_subs_plps  = (cond_AR & cond_subs & (tier_1_cond | tier_2_cond | (tier_3_cond | tier_3_cond_CADD_MPC)))
+#cond_AR_subs_plps  = (cond_AR & cond_subs & (tier_1_cond | tier_2_cond | (tier_3_cond | tier_3_cond_CADD_MOI)))
+
 cond_ADAR_subs_plps = (cond_ADAR & cond_subs & (tier_1_cond | tier_2_cond | tier_3_cond) & cond_lof)     #only LOF variants for ADAR genes
+#cond_ADAR_subs_plps = (cond_ADAR & cond_subs & (tier_1_cond | tier_2_cond | (tier_3_cond | tier_3_cond_CADD_MPC)) & cond_lof)     #only LOF variants for ADAR genes
+#cond_ADAR_subs_plps = (cond_ADAR & cond_subs & (tier_1_cond | tier_2_cond | (tier_3_cond | tier_3_cond_CADD_MOI)) & cond_lof)     #only LOF variants for ADAR genes
 
 cond_AR_indels  = (cond_AR & cond_indels)
 cond_ADAR_indels = (cond_ADAR & cond_indels & cond_lof)
@@ -202,3 +183,7 @@ df_ADAR_indels_plps_leftovers = pd.concat([df_ADAR_indels_tier_1_leftovers, df_A
 df_all_plps_leftovers = pd.concat([df_AR_subs_plps_leftovers, df_ADAR_subs_plps_leftovers, df_AR_indels_plps_leftovers, df_ADAR_indels_plps_leftovers])
 df_all_plps_sorted_leftovers = df_all_plps_leftovers.sort_values('position')
 df_all_plps_sorted_leftovers.to_csv(output_file_leftovers ,sep="\t", index=False)
+
+
+
+

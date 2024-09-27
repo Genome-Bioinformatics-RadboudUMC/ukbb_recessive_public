@@ -1,0 +1,14 @@
+chr	position	ref	alt	gene	panel	hets	homs
+chr6	26092913	G	A	HFE	Metabolic	55998	2524
+chr6	160706469	A	G	PLG	Overlaps	5333	22
+chr16	2317763	T	A	ABCA3	No_panel	4706	12
+chr4	67754019	T	C	GNRHR	Endocrine	3235	5
+chr6	32028508	G	A	C4B	Immune_system	23	6
+chr5	64807670	G	A	CWC27	ID-total	3035	5
+chr7	23274204	G	T	GPNMB	Derm	2916	10
+chr3	132675903	G	A	UBA5	ID-total	2620	3
+chr3	58534004	CTCTG	C	ACOX2	Metabolic	2324	2
+chr11	117411859	C	T	CEP164	Overlaps	2220	4
+chr6	32029581	G	GCT	C4B	Immune_system	2079	0
+chr7	117530975	G	A	CFTR	Metabolic	2069	2
+chr7	66081825	G	A	ASL	Metabolic-ID	1935	0

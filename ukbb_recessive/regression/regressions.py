@@ -48,14 +48,17 @@ def get_information_model(model_result, target=None, analysis=None, gender=None,
 
     if (family == 'binomial'):
         result['odds_ratio_pretty'] = 'OR = ' + result['odds_ratio'].apply(lambda x: f"{x:.3f}")
+        result[f'{100-alpha*100}% CI'] = result.apply(lambda x: f"[{x['odds_ratio_lower']:.3f}, {x['odds_ratio_upper']:.3f}]", axis=1)
     else: 
         result['odds_ratio_pretty'] = 'ES = ' + result['effect'].apply(lambda x: f"{x:.3f}") 
+        result[f'{100-alpha*100}% CI'] = result.apply(lambda x: f"[{x['lower']:.3f}, {x['upper']:.3f}]", axis=1)
 
     result.loc[:, "p_value_corrected"] = result["p_value"]*n_tests_correction
     result.loc[:, 'bonferroni_correction_coef'] = n_tests_correction
 
 
-    result = result[['effect', 'odds_ratio', 'odds_ratio_lower', 'odds_ratio_upper', 'odds_ratio_pretty', 'p_value', 'p_value_corrected', 'bonferroni_correction_coef']]
+    result = result[['effect', 'odds_ratio', 'odds_ratio_lower', 'odds_ratio_upper', 'odds_ratio_pretty', 
+                     f'{100-alpha*100}% CI', 'p_value', 'p_value_corrected', 'bonferroni_correction_coef']]
 
     # add information about observations used for regression model
     result['n_observations'] = model_result.nobs
